@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import Navbar from './components/Navbar';
 import CameraTranslator from './components/CameraTranslator';
-import TranslationOutputPanel from './components/TranslationOutputPanel';
 import VoiceToSignStudio from './components/VoiceToSignStudio';
 import SignAcademy from './components/SignAcademy';
 import EmergencySOSModal from './components/EmergencySOSModal';
@@ -187,31 +186,19 @@ export default function App() {
               </div>
             </div>
 
-            {/* Split Screen Workspace: Camera on Left, Translation on Right */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
-              
-              {/* Left Column: Live Camera & Landmark Visualizer (7 cols) */}
-              <div className="lg:col-span-7 flex flex-col gap-4">
-                <CameraTranslator
-                  settings={settings}
-                  currentSentence={sentenceTokens}
-                  onAppendWord={handleAppendWord}
-                  onSignRecognized={(sign) => {
-                    // Sign recognition event
-                  }}
-                />
-              </div>
-
-              {/* Right Column: Multimodal Translation Output Stream (5 cols) */}
-              <div className="lg:col-span-5 flex flex-col gap-4">
-                <TranslationOutputPanel
-                  sentenceTokens={sentenceTokens}
-                  onClearSentence={handleClearSentence}
-                  onAddManualToken={handleAppendWord}
-                  onSaveToHistory={handleSaveToHistory}
-                />
-              </div>
-
+            {/* Unified Direct Output Camera Studio */}
+            <div className="w-full flex flex-col items-center">
+              <CameraTranslator
+                settings={settings}
+                setSettings={setSettings}
+                currentSentence={sentenceTokens}
+                onAppendWord={handleAppendWord}
+                onClearSentence={handleClearSentence}
+                onSaveToHistory={handleSaveToHistory}
+                onSignRecognized={(sign) => {
+                  // Sign recognition event
+                }}
+              />
             </div>
 
           </div>

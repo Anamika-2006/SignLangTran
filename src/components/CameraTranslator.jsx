@@ -12,8 +12,15 @@ import {
   Sliders,
   Eye,
   Info,
-  HandMetal,
-  Check
+  Volume2,
+  VolumeX,
+  Copy,
+  Trash2,
+  Download,
+  Languages,
+  Check,
+  Radio,
+  Maximize2
 } from 'lucide-react';
 import { 
   generateHandLandmarks, 
@@ -22,19 +29,26 @@ import {
 } from '../utils/handLandmarkSimulation';
 import { SIGN_DICTIONARY } from '../data/signsData';
 import { sounds } from '../utils/soundEffects';
+import { speech } from '../utils/speechSynthesizer';
 
 export default function CameraTranslator({
   onSignRecognized,
   settings,
-  currentSentence,
-  onAppendWord
+  setSettings,
+  currentSentence = [],
+  onAppendWord,
+  onClearSentence,
+  onSaveToHistory
 }) {
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const animFrameRef = useRef(null);
   const mpHandsRef = useRef(null);
   const realLandmarksRef = useRef(null);
+  const lastSpokenRef = useRef('');
+  const lastDetectedIdRef = useRef('');
 
+  // Camera & Detection States
   const [isCameraActive, setIsCameraActive] = useState(false);
   const [cameraError, setCameraError] = useState(null);
   const [selectedSign, setSelectedSign] = useState(SIGN_DICTIONARY[0]);
@@ -45,7 +59,125 @@ export default function CameraTranslator({
   const [isAutoCycle, setIsAutoCycle] = useState(false);
   const [cameraFacing, setCameraFacing] = useState('user');
   const [handInFrame, setHandInFrame] = useState(false);
-  const [mediaPipeReady, setMediaPipeReady] = useState(false);
+
+  // Direct Output States (Integrated Directly With Camera)
+  const [outputMode, setOutputMode] = useState('fluent'); // 'fluent', 'raw', 'spanish', 'hindi'
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [autoSpeakEnabled, setAutoSpeakEnabled] = useState(true); // Direct auto-vocalize
+  const [speechRate, setSpeechRate] = useState(1.0);
+
+  // Fluent translation dictionary
+  const fluentEnglishDict = {
+    'HELLO': 'Hello, greetings!',
+    'THANK YOU': 'Thank you very much for your help.',
+    'PLEASE': 'Please, I would appreciate that.',
+    'YES': 'Yes, I understand and agree.',
+    'NO': 'No, that is not correct.',
+    'I LOVE YOU': 'I love you and appreciate you so much!',
+    'HELP': 'Please help me, I need assistance.',
+    'WATER': 'Could I please have some water?',
+    'EAT / FOOD': 'I would like to have something to eat.',
+    'FRIEND': 'You are a good friend.',
+    'DOCTOR': 'I urgently need to consult a doctor.',
+    'PEACE': 'Wishing you peace and harmony.',
+    'OK': 'Everything is okay and well.',
+    'GOOD': 'Great, everything looks good!',
+    'BAD': 'That is not looking good.',
+    'CALL ME': 'Please give me a phone call.',
+    'YOU / POINT': 'I am looking at you.',
+    'STOP': 'Please stop right there.',
+    'SORRY': 'I apologize for the misunderstanding.',
+    'HAPPY': 'I feel joyful and happy.'
+  };
+
+  const spanishDict = {
+    'HELLO': '¡Hola, saludos!',
+    'THANK YOU': '¡Muchas gracias por su ayuda!',
+    'PLEASE': '¡Por favor!',
+    'YES': 'Sí, comprendo.',
+    'NO': 'No, no es correcto.',
+    'I LOVE YOU': '¡Te quiero mucho!',
+    'HELP': '¡Por favor ayúdame!',
+    'WATER': '¿Puedo tener un poco de agua?',
+    'DOCTOR': 'Necesito un médico urgentemente.'
+  };
+
+  const hindiDict = {
+    'HELLO': 'नमस्ते!',
+    'THANK YOU': 'बहुत बहुत धन्यवाद।',
+    'PLEASE': 'कृपया सहायता करें।',
+    'YES': 'हाँ, मैं समझ गया।',
+    'NO': 'नहीं, यह सही नहीं है।',
+    'I LOVE YOU': 'मैं तुमसे प्यार करता हूँ!',
+    'HELP': 'कृपया मेरी मदद करें।',
+    'WATER': 'क्या मुझे पानी मिल सकता है?',
+    'DOCTOR': 'मुझे डॉक्टर से मिलना है।'
+  };
+
+  // Compute live direct translated text
+  const rawGloss = currentSentence.length > 0 
+    ? currentSentence.join(' ') 
+    : (activeDetectedSign ? activeDetectedSign.aslGloss : 'HELLO');
+
+  const getDirectTranslatedText = () => {
+    if (outputMode === 'raw') {
+      return rawGloss;
+    }
+    if (outputMode === 'spanish') {
+      const match = spanishDict[rawGloss];
+      if (match) return match;
+      if (currentSentence.length > 0) {
+        return currentSentence.map(tok => spanishDict[tok] || tok).join(' ') + '.';
+      }
+      return '¡Hola, encantado de conocerte!';
+    }
+    if (outputMode === 'hindi') {
+      const match = hindiDict[rawGloss];
+      if (match) return match;
+      if (currentSentence.length > 0) {
+        return currentSentence.map(tok => hindiDict[tok] || tok).join(' ') + '।';
+      }
+      return 'नमस्ते, आपसे मिलकर अच्छा लगा!';
+    }
+
+    // Default Fluent English
+    const match = fluentEnglishDict[rawGloss];
+    if (match) return match;
+    if (currentSentence.length > 0) {
+      return currentSentence.map(t => fluentEnglishDict[t] || t).join(', ') + '.';
+    }
+    const singleMatch = fluentEnglishDict[activeDetectedSign?.aslGloss];
+    if (singleMatch) return singleMatch;
+    return `Recognized Sign: ${activeDetectedSign?.aslGloss || 'HELLO'}`;
+  };
+
+  const liveDirectOutput = getDirectTranslatedText();
+
+  // Speak aloud directly
+  const handleSpeakDirect = () => {
+    sounds.playClick();
+    speech.rate = speechRate;
+    setIsSpeaking(true);
+    speech.speak(
+      liveDirectOutput,
+      () => setIsSpeaking(true),
+      () => setIsSpeaking(false)
+    );
+  };
+
+  const handleStopSpeech = () => {
+    sounds.playClick();
+    speech.stop();
+    setIsSpeaking(false);
+  };
+
+  const handleCopyDirect = () => {
+    sounds.playSuccess();
+    navigator.clipboard.writeText(liveDirectOutput);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   // Initialize MediaPipe Hands if available
   useEffect(() => {
@@ -69,7 +201,6 @@ export default function CameraTranslator({
             const w = canvas ? canvas.width : 1280;
             const h = canvas ? canvas.height : 720;
 
-            // Map normalized [0, 1] coords to canvas dimensions
             const mapped = raw.map(p => ({
               x: (settings?.mirrorMode ? (1 - p.x) : p.x) * w,
               y: p.y * h,
@@ -79,9 +210,9 @@ export default function CameraTranslator({
             realLandmarksRef.current = mapped;
             setHandInFrame(true);
 
-            // Run real-time gesture classification
+            // Classify gesture from real hand landmarks
             const detected = classifyHandGesture(mapped);
-            if (detected && detected.id) {
+            if (detected && detected.id && detected.id !== 'unknown' && detected.id !== 'gesture') {
               const matchedInDict = SIGN_DICTIONARY.find(s => s.id === detected.id) || {
                 id: detected.id,
                 aslGloss: detected.gloss,
@@ -91,10 +222,25 @@ export default function CameraTranslator({
                 keyPoints: 'Live webcam gesture recognized',
                 confidenceDefault: detected.confidence
               };
+
               setActiveDetectedSign(matchedInDict);
               setConfidence(detected.confidence);
-              if (onSignRecognized) {
-                onSignRecognized(matchedInDict, detected.confidence);
+
+              // Auto-speak directly when a new gesture is held and recognized
+              if (lastDetectedIdRef.current !== detected.id) {
+                lastDetectedIdRef.current = detected.id;
+                if (onSignRecognized) {
+                  onSignRecognized(matchedInDict, detected.confidence);
+                }
+
+                // If auto-speak is enabled, vocalize immediately!
+                if (autoSpeakEnabled && detected.confidence > 90) {
+                  const toSpeak = fluentEnglishDict[matchedInDict.aslGloss] || matchedInDict.aslGloss;
+                  if (lastSpokenRef.current !== toSpeak) {
+                    lastSpokenRef.current = toSpeak;
+                    speech.speak(toSpeak);
+                  }
+                }
               }
             }
           } else {
@@ -104,12 +250,11 @@ export default function CameraTranslator({
         });
 
         mpHandsRef.current = hands;
-        setMediaPipeReady(true);
       } catch (e) {
         console.warn('MediaPipe initialization fallback:', e);
       }
     }
-  }, [settings?.mirrorMode, onSignRecognized]);
+  }, [settings?.mirrorMode, autoSpeakEnabled, onSignRecognized]);
 
   // Start webcam stream
   const startCamera = async () => {
@@ -172,14 +317,18 @@ export default function CameraTranslator({
     sounds.playDetectChime();
     setSelectedSign(sign);
     setActiveDetectedSign(sign);
-    const newConf = 95 + Math.random() * 4.5;
+    const newConf = 96 + Math.random() * 3.8;
     setConfidence(newConf);
     if (onSignRecognized) {
       onSignRecognized(sign, newConf);
     }
+    if (autoSpeakEnabled) {
+      const toSpeak = fluentEnglishDict[sign.aslGloss] || sign.aslGloss;
+      speech.speak(toSpeak);
+    }
   };
 
-  // Auto-cycle through gestures demo mode
+  // Auto-cycle practice demo mode
   useEffect(() => {
     if (!isAutoCycle) return;
     const interval = setInterval(() => {
@@ -188,13 +337,13 @@ export default function CameraTranslator({
         const nextIdx = (currentIdx + 1) % SIGN_DICTIONARY.length;
         const nextSign = SIGN_DICTIONARY[nextIdx];
         setActiveDetectedSign(nextSign);
-        setConfidence(95 + Math.random() * 4.5);
+        setConfidence(96 + Math.random() * 3.8);
         if (onSignRecognized) {
-          onSignRecognized(nextSign, 97.5);
+          onSignRecognized(nextSign, 98.0);
         }
         return nextSign;
       });
-    }, 4000);
+    }, 3800);
 
     return () => clearInterval(interval);
   }, [isAutoCycle, onSignRecognized]);
@@ -242,16 +391,17 @@ export default function CameraTranslator({
         if (realLandmarksRef.current) {
           drawHandLandmarks(ctx, realLandmarksRef.current, activeDetectedSign.aslGloss, confidence);
         } else {
-          // Subtle instruction overlay when no hand is in view
-          ctx.fillStyle = 'rgba(15, 23, 42, 0.6)';
-          ctx.fillRect(width / 2 - 200, height - 70, 400, 40);
+          // Instruction tag when waiting for hands
+          ctx.fillStyle = 'rgba(15, 23, 42, 0.75)';
+          ctx.fillRect(width / 2 - 210, 80, 420, 42);
           ctx.strokeStyle = '#06b6d4';
-          ctx.strokeRect(width / 2 - 200, height - 70, 400, 40);
+          ctx.lineWidth = 1.5;
+          ctx.strokeRect(width / 2 - 210, 80, 420, 42);
 
-          ctx.font = 'bold 14px monospace';
+          ctx.font = 'bold 13px ui-monospace, monospace';
           ctx.fillStyle = '#38bdf8';
           ctx.textAlign = 'center';
-          ctx.fillText('SHOW YOUR HAND TO DETECT SIGNS', width / 2, height - 45);
+          ctx.fillText('SHOW YOUR HAND TO CAM FOR INSTANT OUTPUT', width / 2, 106);
           ctx.textAlign = 'left';
         }
 
@@ -280,7 +430,7 @@ export default function CameraTranslator({
           ctx.stroke();
         }
 
-        // Center target reticle
+        // Target reticle
         ctx.beginPath();
         ctx.arc(width / 2, height / 2, 130, 0, Math.PI * 2);
         ctx.strokeStyle = 'rgba(56, 189, 248, 0.15)';
@@ -313,11 +463,14 @@ export default function CameraTranslator({
   }, [isCameraActive, selectedSign, activeDetectedSign, confidence, settings?.mirrorMode]);
 
   return (
-    <div className="w-full flex flex-col gap-4">
-      {/* Visualizer Frame Container */}
-      <div className="relative w-full aspect-[4/3] sm:aspect-[16/10] md:aspect-[16/9] rounded-3xl overflow-hidden border border-cyan-500/30 bg-slate-950 shadow-2xl shadow-cyan-950/40">
+    <div className="w-full max-w-5xl mx-auto flex flex-col gap-5">
+      
+      {/* ============================================================== */}
+      {/* UNIFIED FULL-WIDTH CAMERA FRAME WITH DIRECT INTEGRATED OUTPUT */}
+      {/* ============================================================== */}
+      <div className="relative w-full aspect-[4/3] sm:aspect-[16/10] md:aspect-[16/9] rounded-[32px] overflow-hidden border-2 border-cyan-500/40 bg-slate-950 shadow-[0_0_60px_rgba(6,182,212,0.2)]">
         
-        {/* Real Video Element Source */}
+        {/* Real Video Source */}
         <video 
           ref={videoRef} 
           playsInline 
@@ -334,16 +487,16 @@ export default function CameraTranslator({
         />
 
         {/* HUD Top Bar: Telemetry Data */}
-        <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none select-none">
+        <div className="absolute top-4 left-4 right-4 flex items-center justify-between pointer-events-none select-none z-20">
           <div className="flex items-center gap-2">
             <span className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-slate-950/85 backdrop-blur-md border border-cyan-500/40 text-cyan-300 text-xs font-mono font-bold shadow-lg">
               <span className={`w-2 h-2 rounded-full ${isCameraActive ? 'bg-emerald-400 animate-ping' : 'bg-cyan-400'}`}></span>
-              {isCameraActive ? (handInFrame ? 'WEBCAM: HAND LOCKED' : 'WEBCAM: LIVE FEED') : 'NEURAL SIMULATOR'}
+              {isCameraActive ? (handInFrame ? 'CAMERA: HAND LOCKED' : 'CAMERA: LIVE') : 'SIMULATOR MODE'}
             </span>
 
             <span className="hidden sm:flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-slate-950/75 backdrop-blur-md border border-slate-800 text-slate-300 text-xs font-mono">
               <Layers className="w-3.5 h-3.5 text-cyan-400" />
-              21 Joint Points
+              21 Landmark Mesh
             </span>
           </div>
 
@@ -352,19 +505,146 @@ export default function CameraTranslator({
               {fps} FPS
             </span>
             <span className="px-2.5 py-1 rounded-full bg-slate-950/80 backdrop-blur-md border border-slate-800 text-cyan-400 text-xs font-mono">
-              {latency}ms Latency
+              {latency}ms
             </span>
           </div>
         </div>
 
-        {/* Floating Controls at Bottom */}
-        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-2 pointer-events-auto">
+        {/* ============================================================== */}
+        {/* DIRECT REAL-TIME OUTPUT HUD BANNER (OVERLAY ON TOP OF CAMERA) */}
+        {/* ============================================================== */}
+        <div className="absolute bottom-20 left-4 right-4 z-20 pointer-events-auto">
+          <div className="p-4 sm:p-5 rounded-2xl bg-slate-950/90 border border-cyan-500/50 backdrop-blur-xl shadow-2xl flex flex-col gap-2">
+            
+            {/* Header of Direct Output */}
+            <div className="flex items-center justify-between text-xs font-mono">
+              <div className="flex items-center gap-2">
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-cyan-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-cyan-500"></span>
+                </span>
+                <span className="text-cyan-400 font-bold uppercase tracking-wider">DIRECT TRANSLATION OUTPUT:</span>
+              </div>
+
+              {/* Language Switcher Directly on HUD */}
+              <div className="flex items-center gap-1 bg-slate-900/90 p-1 rounded-xl border border-slate-800 text-[11px]">
+                <button
+                  onClick={() => { sounds.playClick(); setOutputMode('fluent'); }}
+                  className={`px-2 py-0.5 rounded-lg transition-all ${outputMode === 'fluent' ? 'bg-cyan-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'}`}
+                >
+                  English
+                </button>
+                <button
+                  onClick={() => { sounds.playClick(); setOutputMode('raw'); }}
+                  className={`px-2 py-0.5 rounded-lg transition-all ${outputMode === 'raw' ? 'bg-slate-700 text-cyan-300 font-bold' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Raw Sign
+                </button>
+                <button
+                  onClick={() => { sounds.playClick(); setOutputMode('spanish'); }}
+                  className={`px-2 py-0.5 rounded-lg transition-all hidden sm:block ${outputMode === 'spanish' ? 'bg-emerald-500 text-slate-950 font-bold' : 'text-slate-400 hover:text-white'}`}
+                >
+                  Español
+                </button>
+                <button
+                  onClick={() => { sounds.playClick(); setOutputMode('hindi'); }}
+                  className={`px-2 py-0.5 rounded-lg transition-all ${outputMode === 'hindi' ? 'bg-indigo-600 text-white font-bold' : 'text-slate-500 hover:text-white'}`}
+                >
+                  Hindi
+                </button>
+              </div>
+            </div>
+
+            {/* Huge Direct Translation Subtitle */}
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight leading-snug drop-shadow-md">
+                "{liveDirectOutput}"
+              </p>
+
+              {/* Action Buttons Directly on Camera */}
+              <div className="flex items-center gap-2 flex-shrink-0">
+                {isSpeaking ? (
+                  <button
+                    onClick={handleStopSpeech}
+                    className="p-2.5 rounded-xl bg-rose-600 text-white shadow-lg animate-bounce"
+                    title="Stop Voice"
+                  >
+                    <VolumeX className="w-5 h-5" />
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleSpeakDirect}
+                    className="p-2.5 rounded-xl bg-cyan-500 hover:bg-cyan-400 text-slate-950 shadow-lg font-bold"
+                    title="Speak Aloud"
+                  >
+                    <Volume2 className="w-5 h-5" />
+                  </button>
+                )}
+
+                <button
+                  onClick={handleCopyDirect}
+                  className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200"
+                  title="Copy Text"
+                >
+                  {copied ? <Check className="w-5 h-5 text-emerald-400" /> : <Copy className="w-5 h-5" />}
+                </button>
+
+                <button
+                  onClick={() => {
+                    sounds.playClick();
+                    if (onClearSentence) onClearSentence();
+                  }}
+                  className="p-2.5 rounded-xl bg-slate-800/80 hover:bg-rose-950 text-slate-400 hover:text-rose-400"
+                  title="Clear"
+                >
+                  <Trash2 className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Audio Wave Visualizer & Status Strip */}
+            <div className="flex items-center justify-between text-[11px] font-mono text-slate-400 pt-1 border-t border-slate-900">
+              <div className="flex items-center gap-1.5">
+                {[4, 12, 18, 24, 16, 8, 20, 14, 6].map((h, i) => (
+                  <div
+                    key={i}
+                    className={`w-1 rounded-full transition-all duration-150 ${isSpeaking ? 'bg-cyan-400 animate-pulse' : 'bg-slate-700'}`}
+                    style={{ height: isSpeaking ? `${Math.max(4, h)}px` : '4px' }}
+                  />
+                ))}
+                <span className="text-[10px] ml-1 text-slate-400">
+                  {isSpeaking ? 'VOICE SYNTHESIZING...' : 'VOICE ENGINE READY'}
+                </span>
+              </div>
+
+              {/* Auto Speak Toggle */}
+              <button
+                onClick={() => {
+                  sounds.playClick();
+                  setAutoSpeakEnabled(!autoSpeakEnabled);
+                }}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-[11px] transition-all ${
+                  autoSpeakEnabled 
+                    ? 'bg-emerald-500/20 border-emerald-400/40 text-emerald-300 font-bold' 
+                    : 'bg-slate-900 border-slate-800 text-slate-500'
+                }`}
+              >
+                <Radio className="w-3 h-3" />
+                <span>{autoSpeakEnabled ? 'Auto-Voice: ON' : 'Auto-Voice: OFF'}</span>
+              </button>
+            </div>
+
+          </div>
+        </div>
+
+        {/* Camera Control Action Buttons at Very Bottom */}
+        <div className="absolute bottom-4 left-4 right-4 flex items-center justify-between gap-2 pointer-events-auto z-20">
           
           <div className="flex items-center gap-2">
             {isCameraActive ? (
               <button
                 onClick={stopCamera}
-                className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-rose-600/90 hover:bg-rose-500 text-white text-xs sm:text-sm font-semibold backdrop-blur-md shadow-lg shadow-rose-950/50 transition-all"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-rose-600/90 hover:bg-rose-500 text-white text-xs sm:text-sm font-semibold backdrop-blur-md shadow-lg shadow-rose-950/50 transition-all"
               >
                 <CameraOff className="w-4 h-4" />
                 <span>Turn Off Camera</span>
@@ -372,7 +652,7 @@ export default function CameraTranslator({
             ) : (
               <button
                 onClick={startCamera}
-                className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-cyan-500 to-sky-600 hover:from-cyan-400 hover:to-sky-500 text-white text-xs sm:text-sm font-semibold backdrop-blur-md shadow-lg shadow-cyan-900/50 transition-all group"
+                className="flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-cyan-500 to-sky-600 hover:from-cyan-400 hover:to-sky-500 text-white text-xs sm:text-sm font-semibold backdrop-blur-md shadow-lg shadow-cyan-900/50 transition-all group"
               >
                 <Camera className="w-4 h-4 group-hover:scale-110 transition-transform" />
                 <span>Start WebCam Feed</span>
@@ -383,7 +663,7 @@ export default function CameraTranslator({
               <button
                 onClick={toggleCameraFacing}
                 title="Switch Camera Facing"
-                className="p-2 rounded-2xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-white backdrop-blur-md transition-colors"
+                className="p-2.5 rounded-2xl bg-slate-900/80 hover:bg-slate-800 border border-slate-700 text-white backdrop-blur-md transition-colors"
               >
                 <RefreshCw className="w-4 h-4" />
               </button>
@@ -391,7 +671,7 @@ export default function CameraTranslator({
           </div>
 
           <div className="flex items-center gap-2">
-            {/* Auto Cycle Gesture Demo */}
+            {/* Auto Cycle Demo */}
             <button
               onClick={() => {
                 sounds.playClick();
@@ -414,10 +694,10 @@ export default function CameraTranslator({
                 sounds.playSuccess();
                 if (onAppendWord) onAppendWord(activeDetectedSign.aslGloss);
               }}
-              className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold backdrop-blur-md shadow-lg shadow-emerald-950/50 transition-all active:scale-95"
+              className="flex items-center gap-1.5 px-4 py-2.5 rounded-2xl bg-emerald-600/90 hover:bg-emerald-500 text-white text-xs sm:text-sm font-semibold backdrop-blur-md shadow-lg shadow-emerald-950/50 transition-all active:scale-95"
             >
               <Zap className="w-4 h-4" />
-              <span>Add to Sentence</span>
+              <span>Add Sign</span>
             </button>
           </div>
 
@@ -425,7 +705,7 @@ export default function CameraTranslator({
 
         {/* Camera Permission Alert Banner */}
         {cameraError && (
-          <div className="absolute top-14 left-4 right-4 p-3 rounded-2xl bg-amber-950/85 border border-amber-500/40 backdrop-blur-lg flex items-center justify-between text-amber-200 text-xs">
+          <div className="absolute top-16 left-4 right-4 p-3 rounded-2xl bg-amber-950/85 border border-amber-500/40 backdrop-blur-lg flex items-center justify-between text-amber-200 text-xs z-30">
             <div className="flex items-center gap-2">
               <Info className="w-4 h-4 flex-shrink-0 text-amber-400" />
               <span>{cameraError}</span>
@@ -440,7 +720,9 @@ export default function CameraTranslator({
         )}
       </div>
 
-      {/* Real-Time Detection Hero Ribbon (CLEAN INTERNATIONAL ENGLISH - NO HINDI) */}
+      {/* ============================================================== */}
+      {/* SIGN DETAILS RIBBON & CONFIDENCE TELEMETRY */}
+      {/* ============================================================== */}
       <div className="w-full rounded-2xl bg-gradient-to-r from-slate-900 via-slate-900/90 to-indigo-950/60 border border-cyan-500/20 p-4 shadow-xl flex flex-col md:flex-row items-center justify-between gap-4">
         
         {/* Left: Gesture Identity */}
@@ -493,7 +775,9 @@ export default function CameraTranslator({
 
       </div>
 
-      {/* Expanded Interactive Sign Sandbox (Click to Test Gesture Recognition) */}
+      {/* ============================================================== */}
+      {/* QUICK GESTURE TESTER STRIP */}
+      {/* ============================================================== */}
       <div className="w-full flex flex-col gap-2 text-left">
         <div className="flex items-center justify-between">
           <span className="text-xs font-mono font-semibold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
@@ -525,6 +809,7 @@ export default function CameraTranslator({
           })}
         </div>
       </div>
+
     </div>
   );
 }
