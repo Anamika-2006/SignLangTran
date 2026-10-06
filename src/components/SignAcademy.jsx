@@ -30,8 +30,7 @@ export default function SignAcademy() {
     const matchesCat = selectedCategory === 'All' || sign.category === selectedCategory;
     const matchesSearch = 
       sign.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sign.aslGloss.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      sign.hindi.toLowerCase().includes(searchQuery.toLowerCase());
+      sign.aslGloss.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCat && matchesSearch;
   });
 
@@ -179,7 +178,6 @@ export default function SignAcademy() {
                   <div>
                     <p className="font-bold text-base leading-tight">{opt.name}</p>
                     <p className="text-xs text-slate-400 font-mono mt-0.5">Gloss: {opt.aslGloss}</p>
-                    <p className="text-[11px] text-indigo-300">{opt.hindi}</p>
                   </div>
 
                   {quizFeedback && isCorrect && (
@@ -280,9 +278,6 @@ export default function SignAcademy() {
                       </h4>
                       <p className="text-xs font-mono text-cyan-400 font-semibold">
                         {sign.aslGloss}
-                      </p>
-                      <p className="text-[11px] text-indigo-300">
-                        {sign.hindi}
                       </p>
                     </div>
                   </div>

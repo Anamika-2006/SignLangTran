@@ -53,8 +53,7 @@ export default function VoiceToSignStudio() {
               category: 'Spelling',
               originalWord: char,
               type: 'spelling',
-              keyPoints: `Fingerspell letter ${char}`,
-              hindi: `अक्षर ${char}`
+              keyPoints: `Fingerspell letter ${char}`
             });
           }
         }
@@ -235,9 +234,6 @@ export default function VoiceToSignStudio() {
               </h3>
               <p className="text-sm text-cyan-400 font-semibold">
                 {currentActiveSign.name}
-              </p>
-              <p className="text-xs text-indigo-300">
-                हिन्दी: <strong className="text-white">{currentActiveSign.hindi}</strong>
               </p>
               <p className="text-xs text-slate-400 max-w-md mx-auto pt-2 italic">
                 {currentActiveSign.keyPoints || currentActiveSign.tips}

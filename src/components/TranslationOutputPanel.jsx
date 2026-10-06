@@ -7,11 +7,8 @@ import {
   Download, 
   Sparkles, 
   Check, 
-  RotateCcw,
   Languages,
-  Play,
-  Share2,
-  Mic
+  RotateCcw
 } from 'lucide-react';
 import { speech } from '../utils/speechSynthesizer';
 import { sounds } from '../utils/soundEffects';
@@ -22,7 +19,7 @@ export default function TranslationOutputPanel({
   onAddManualToken,
   onSaveToHistory
 }) {
-  const [outputMode, setOutputMode] = useState('fluent'); // 'fluent', 'raw', 'hindi', 'spanish'
+  const [outputMode, setOutputMode] = useState('fluent'); // 'fluent', 'raw', 'spanish', 'hindi'
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [copied, setCopied] = useState(false);
   const [speechRate, setSpeechRate] = useState(1.0);
@@ -45,36 +42,53 @@ export default function TranslationOutputPanel({
   }, [selectedVoice]);
 
   // Transform raw tokens into fluent natural sentences
-  const rawGloss = sentenceTokens.length > 0 ? sentenceTokens.join(' ') : 'HELLO MEET YOU NICE';
+  const rawGloss = sentenceTokens.length > 0 ? sentenceTokens.join(' ') : 'HELLO THANK YOU';
 
   const fluentEnglishDict = {
     'HELLO': 'Hello, greetings!',
-    'THANK-YOU': 'Thank you very much for your help.',
+    'THANK YOU': 'Thank you very much for your help.',
     'PLEASE': 'Please, I would appreciate that.',
-    'YES': 'Yes, I agree and understand.',
-    'NO': 'No, I respectfully decline.',
-    'ILY': 'I love you and appreciate you so much!',
+    'YES': 'Yes, I understand and agree.',
+    'NO': 'No, that is not correct.',
+    'I LOVE YOU': 'I love you and appreciate you so much!',
     'HELP': 'Please help me, I need assistance.',
-    'WATER': 'Could I please have a glass of water?',
+    'WATER': 'Could I please have some water?',
+    'EAT / FOOD': 'I would like to have something to eat.',
+    'FRIEND': 'You are a good friend.',
     'DOCTOR': 'I urgently need to consult a doctor.',
-    'PEACE': 'Wishing you peace and positivity.',
-    'GOOD MORNING': 'Good morning! Have a wonderful day.',
-    'STOP': 'Please stop immediately.'
+    'PEACE': 'Wishing you peace and harmony.',
+    'OK': 'Everything is okay and well.',
+    'GOOD': 'Great, everything looks good!',
+    'BAD': 'That is not looking good.',
+    'CALL ME': 'Please give me a phone call.',
+    'YOU / POINT': 'I am looking at you.',
+    'STOP': 'Please stop right there.',
+    'SORRY': 'I apologize for the misunderstanding.',
+    'HAPPY': 'I feel joyful and happy.'
+  };
+
+  const spanishDict = {
+    'HELLO': '¡Hola, saludos!',
+    'THANK YOU': '¡Muchas gracias por su ayuda!',
+    'PLEASE': '¡Por favor!',
+    'YES': 'Sí, comprendo.',
+    'NO': 'No, no es correcto.',
+    'I LOVE YOU': '¡Te quiero mucho!',
+    'HELP': '¡Por favor ayúdame!',
+    'WATER': '¿Puedo tener un poco de agua?',
+    'DOCTOR': 'Necesito un médico urgentemente.'
   };
 
   const hindiDict = {
-    'HELLO': 'नमस्ते, आपका स्वागत है!',
-    'THANK-YOU': 'आपकी सहायता के लिए बहुत-बहुत धन्यवाद।',
-    'PLEASE': 'कृपया मेरी सहायता करें।',
-    'YES': 'हाँ, मैं पूरी तरह सहमत हूँ।',
+    'HELLO': 'नमस्ते!',
+    'THANK YOU': 'बहुत बहुत धन्यवाद।',
+    'PLEASE': 'कृपया सहायता करें।',
+    'YES': 'हाँ, मैं समझ गया।',
     'NO': 'नहीं, यह सही नहीं है।',
-    'ILY': 'मैं तुमसे बहुत प्यार करता हूँ!',
-    'HELP': 'कृपया मेरी मदद करें, मुझे तुरंत सहायता चाहिए।',
-    'WATER': 'क्या मुझे पीने के लिए पानी मिल सकता है?',
-    'DOCTOR': 'मुझे तुरंत एक डॉक्टर से मिलने की ज़रूरत है।',
-    'PEACE': 'सभी के लिए शांति और सद्भाव की कामना।',
-    'GOOD MORNING': 'शुभ प्रभात! आपका दिन मंगलमय हो।',
-    'STOP': 'कृपया तुरंत रुकें।'
+    'I LOVE YOU': 'मैं तुमसे प्यार करता हूँ!',
+    'HELP': 'कृपया मेरी मदद करें।',
+    'WATER': 'क्या मुझे पानी मिल सकता है?',
+    'DOCTOR': 'मुझे डॉक्टर से मिलना है।'
   };
 
   const getTranslatedText = () => {
@@ -82,30 +96,32 @@ export default function TranslationOutputPanel({
       return rawGloss;
     }
 
+    if (outputMode === 'spanish') {
+      const match = spanishDict[rawGloss];
+      if (match) return match;
+      if (sentenceTokens.length > 0) {
+        return sentenceTokens.map(tok => spanishDict[tok] || tok).join(' ') + '.';
+      }
+      return '¡Hola, encantado de conocerte!';
+    }
+
+    // Only show Hindi IF the user explicitly clicks the 'hindi' tab!
     if (outputMode === 'hindi') {
       const match = hindiDict[rawGloss];
       if (match) return match;
       if (sentenceTokens.length > 0) {
-        const translatedParts = sentenceTokens.map(tok => hindiDict[tok] || tok);
-        return translatedParts.join(' ');
+        return sentenceTokens.map(tok => hindiDict[tok] || tok).join(' ') + '।';
       }
-      return 'नमस्ते, आपसे मिलकर बहुत खुशी हुई!';
+      return 'नमस्ते, आपसे मिलकर अच्छा लगा!';
     }
 
-    if (outputMode === 'spanish') {
-      if (rawGloss.includes('HELLO')) return '¡Hola, encantado de conocerte!';
-      if (rawGloss.includes('THANK')) return '¡Muchas gracias por su ayuda!';
-      if (rawGloss.includes('HELP')) return '¡Por favor ayúdame, necesito asistencia!';
-      return '¡Hola a todos, gracias por comunicarse conmigo!';
-    }
-
-    // Default 'fluent' English
+    // Default: Pure fluent English
     const match = fluentEnglishDict[rawGloss];
     if (match) return match;
     if (sentenceTokens.length > 0) {
       return sentenceTokens.map(t => fluentEnglishDict[t] || t).join(', ') + '.';
     }
-    return 'Hello, it is wonderful to meet you!';
+    return 'Hello, thank you for communicating with me!';
   };
 
   const currentDisplayText = getTranslatedText();
@@ -148,7 +164,7 @@ export default function TranslationOutputPanel({
       `Raw Gloss: ${rawGloss}\n` +
       `Mode: ${outputMode.toUpperCase()}\n` +
       `Translated Text: ${currentDisplayText}\n\n` +
-      `Generated by GestureSync AI Next-Gen Neural Translation Studio.`;
+      `Generated by GestureSync AI Universal Translation Studio.`;
     
     const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
@@ -172,10 +188,10 @@ export default function TranslationOutputPanel({
             </div>
             <div>
               <h4 className="text-sm font-bold text-white tracking-wide">
-                MULTIMODAL TRANSLATION STREAM
+                TRANSLATION OUTPUT STREAM
               </h4>
               <p className="text-[11px] text-slate-400">
-                Neural grammar smoothing & live voice synthesizer
+                Natural language refinement & vocal speech synthesizer
               </p>
             </div>
           </div>
@@ -191,16 +207,6 @@ export default function TranslationOutputPanel({
               }`}
             >
               Fluent English
-            </button>
-            <button
-              onClick={() => { sounds.playClick(); setOutputMode('hindi'); }}
-              className={`px-3 py-1.5 rounded-lg transition-all ${
-                outputMode === 'hindi'
-                  ? 'bg-indigo-500 text-white font-bold shadow'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              हिन्दी (Hindi)
             </button>
             <button
               onClick={() => { sounds.playClick(); setOutputMode('raw'); }}
@@ -222,6 +228,17 @@ export default function TranslationOutputPanel({
             >
               Español
             </button>
+            <button
+              onClick={() => { sounds.playClick(); setOutputMode('hindi'); }}
+              title="Show Hindi translation only on user request"
+              className={`px-3 py-1.5 rounded-lg transition-all text-[11px] ${
+                outputMode === 'hindi'
+                  ? 'bg-indigo-600 text-white font-bold shadow'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+            >
+              Hindi (On Request)
+            </button>
           </div>
         </div>
 
@@ -230,10 +247,10 @@ export default function TranslationOutputPanel({
           
           <div className="space-y-1">
             <div className="flex items-center justify-between text-[11px] font-mono text-slate-500 mb-1">
-              <span>ACTIVE SYNTHESIS</span>
-              <span className="text-cyan-400 flex items-center gap-1">
+              <span>SYNTHESIS PREVIEW</span>
+              <span className="text-cyan-400 flex items-center gap-1 font-semibold">
                 <Sparkles className="w-3 h-3" />
-                AI Refined
+                Refined Grammar
               </span>
             </div>
             <p className="text-xl sm:text-2xl md:text-3xl font-extrabold text-white tracking-tight leading-relaxed">
@@ -258,12 +275,12 @@ export default function TranslationOutputPanel({
                 />
               ))}
               <span className="text-[10px] font-mono text-slate-500 ml-2">
-                {isSpeaking ? 'VOICE SYNTHESIZING...' : 'VOICE ENGINE READY'}
+                {isSpeaking ? 'SYNTHESIZING SPEECH AUDIO...' : 'AUDIO SYNTHESIZER READY'}
               </span>
             </div>
 
             <span className="text-[11px] font-mono text-slate-400">
-              Gloss: <span className="text-cyan-300 font-bold">{rawGloss}</span>
+              Sign Sequence: <span className="text-cyan-300 font-bold">{rawGloss}</span>
             </span>
           </div>
         </div>
@@ -295,14 +312,14 @@ export default function TranslationOutputPanel({
               className="flex items-center gap-1.5 px-3.5 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs sm:text-sm font-semibold transition-colors"
             >
               {copied ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
-              <span>{copied ? 'Copied!' : 'Copy'}</span>
+              <span>{copied ? 'Copied!' : 'Copy Text'}</span>
             </button>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={handleDownload}
-              title="Download Transcript"
+              title="Download Transcript File"
               className="p-2.5 rounded-2xl bg-slate-800/80 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
             >
               <Download className="w-4 h-4" />
@@ -331,7 +348,7 @@ export default function TranslationOutputPanel({
                 sounds.playClick();
                 if (onClearSentence) onClearSentence();
               }}
-              title="Clear Sentence"
+              title="Clear Current Sentence"
               className="p-2.5 rounded-2xl bg-slate-800/60 hover:bg-rose-950/40 text-slate-400 hover:text-rose-400 border border-slate-700/60 transition-colors"
             >
               <Trash2 className="w-4 h-4" />
@@ -340,11 +357,11 @@ export default function TranslationOutputPanel({
 
         </div>
 
-        {/* Speech Tuning Controls: Rate & Voice Selector */}
+        {/* Speech Tuning Controls */}
         <div className="pt-3 border-t border-slate-800/80 flex flex-wrap items-center justify-between gap-3 text-xs text-slate-400">
           
           <div className="flex items-center gap-2">
-            <span className="font-mono">Speech Rate:</span>
+            <span className="font-mono">Speech Speed:</span>
             {[0.8, 1.0, 1.2, 1.5].map((rate) => (
               <button
                 key={rate}

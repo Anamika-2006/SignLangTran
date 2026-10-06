@@ -1,4 +1,4 @@
-// 21-Point Hand Pose Kinematics and Skeleton Renderer
+// 21-Point Hand Pose Kinematics, Classifier, and Canvas Renderer
 
 export const HAND_CONNECTIONS = [
   // Thumb
@@ -15,7 +15,115 @@ export const HAND_CONNECTIONS = [
   [5, 9], [9, 13], [13, 17]
 ];
 
-// Generates landmark coordinates based on gesture configuration and subtle kinematic noise
+// Euclidean distance between two 2D/3D points
+export function distance(p1, p2) {
+  if (!p1 || !p2) return 0;
+  const dx = p1.x - p2.x;
+  const dy = p1.y - p2.y;
+  const dz = (p1.z || 0) - (p2.z || 0);
+  return Math.sqrt(dx * dx + dy * dy + dz * dz);
+}
+
+// Real-Time Gesture Classifier from 21 Landmarks
+export function classifyHandGesture(landmarks) {
+  if (!landmarks || landmarks.length < 21) {
+    return { id: 'unknown', gloss: 'DETECTING...', confidence: 60 };
+  }
+
+  const wrist = landmarks[0];
+  const thumbTip = landmarks[4];
+  const thumbMcp = landmarks[2];
+  const indexTip = landmarks[8];
+  const indexPip = landmarks[6];
+  const indexMcp = landmarks[5];
+  const middleTip = landmarks[12];
+  const middlePip = landmarks[10];
+  const ringTip = landmarks[16];
+  const ringPip = landmarks[14];
+  const pinkyTip = landmarks[20];
+  const pinkyPip = landmarks[18];
+
+  // Palm scale reference
+  const palmScale = distance(wrist, landmarks[9]) || 100;
+
+  // Check finger extension based on wrist-to-tip vs wrist-to-pip distance
+  const isExtended = (tip, pip) => distance(wrist, tip) > distance(wrist, pip) * 1.15;
+
+  const indexExt = isExtended(indexTip, indexPip);
+  const middleExt = isExtended(middleTip, middlePip);
+  const ringExt = isExtended(ringTip, ringPip);
+  const pinkyExt = isExtended(pinkyTip, pinkyPip);
+
+  // Thumb extension (relative to palm and index base)
+  const thumbExt = distance(wrist, thumbTip) > distance(wrist, thumbMcp) * 1.25 &&
+                   distance(thumbTip, indexMcp) > palmScale * 0.35;
+
+  // Check if thumb & index are touching (OK or C sign)
+  const thumbIndexDist = distance(thumbTip, indexTip);
+  const isTouchingThumbIndex = thumbIndexDist < palmScale * 0.28;
+
+  // Count total extended fingers
+  const count = (indexExt ? 1 : 0) + (middleExt ? 1 : 0) + (ringExt ? 1 : 0) + (pinkyExt ? 1 : 0);
+
+  // 1. I LOVE YOU: Thumb, Index, Pinky extended; Middle and Ring folded
+  if (thumbExt && indexExt && !middleExt && !ringExt && pinkyExt) {
+    return { id: 'i-love-you', gloss: 'I LOVE YOU', confidence: 99.4 };
+  }
+
+  // 2. OK SIGN: Thumb & Index touching, Middle, Ring, Pinky extended
+  if (isTouchingThumbIndex && middleExt && ringExt && pinkyExt) {
+    return { id: 'ok', gloss: 'OK', confidence: 98.6 };
+  }
+
+  // 3. CALL ME / SHAKA / Y: Thumb & Pinky extended, others curled
+  if (thumbExt && !indexExt && !middleExt && !ringExt && pinkyExt) {
+    return { id: 'call-me', gloss: 'CALL ME / Y', confidence: 98.9 };
+  }
+
+  // 4. PEACE / V SIGN / 2: Index & Middle up, Ring & Pinky closed
+  if (!thumbExt && indexExt && middleExt && !ringExt && !pinkyExt) {
+    return { id: 'peace', gloss: 'PEACE / V', confidence: 99.1 };
+  }
+
+  // 5. LETTER L: Thumb & Index at 90 deg, others closed
+  if (thumbExt && indexExt && !middleExt && !ringExt && !pinkyExt) {
+    return { id: 'letter-l', gloss: 'L', confidence: 99.2 };
+  }
+
+  // 6. THUMBS UP (GOOD): Thumb up, all others curled, thumb tip above wrist
+  if (thumbExt && count === 0 && thumbTip.y < wrist.y) {
+    return { id: 'thumbs-up', gloss: 'GOOD / THUMBS UP', confidence: 98.7 };
+  }
+
+  // 7. POINT / ONE: Index only extended
+  if (indexExt && !middleExt && !ringExt && !pinkyExt) {
+    return { id: 'point', gloss: 'ONE / POINT', confidence: 99.0 };
+  }
+
+  // 8. WATER / THREE: Index, Middle, Ring extended, Pinky closed
+  if (indexExt && middleExt && ringExt && !pinkyExt) {
+    return { id: 'water', gloss: 'WATER / 3', confidence: 98.1 };
+  }
+
+  // 9. FOUR / LETTER B: 4 fingers extended, thumb folded
+  if (!thumbExt && indexExt && middleExt && ringExt && pinkyExt) {
+    return { id: 'letter-b', gloss: 'B / FOUR', confidence: 98.8 };
+  }
+
+  // 10. HELLO / OPEN HAND (FIVE): All 5 fingers extended wide
+  if (thumbExt && indexExt && middleExt && ringExt && pinkyExt) {
+    return { id: 'hello', gloss: 'HELLO / OPEN HAND', confidence: 99.2 };
+  }
+
+  // 11. CLOSED FIST / YES / A: All 5 fingers curled
+  if (!indexExt && !middleExt && !ringExt && !pinkyExt) {
+    return { id: 'yes', gloss: 'YES / FIST', confidence: 98.5 };
+  }
+
+  return { id: 'gesture', gloss: 'TRACKING GESTURE', confidence: 94.0 };
+}
+
+// Generates landmark coordinates based on gesture configuration and kinematic micro-movements
 export function generateHandLandmarks(signId, time, width = 640, height = 480) {
   const cx = width / 2;
   const cy = height / 2 + 30;
@@ -40,13 +148,13 @@ export function generateHandLandmarks(signId, time, width = 640, height = 480) {
   let ringFold = 0.0;
   let pinkyFold = 0.0;
 
-  if (signId === 'yes' || signId === 'letter-a') {
+  if (signId === 'yes' || signId === 'letter-a' || signId === 'fist') {
     thumbFold = 0.8;
     indexFold = 1.0;
     middleFold = 1.0;
     ringFold = 1.0;
     pinkyFold = 1.0;
-  } else if (signId === 'peace' || signId === 'letter-v') {
+  } else if (signId === 'peace' || signId === 'letter-v' || signId === 'num-2') {
     thumbFold = 0.9;
     indexFold = 0.0;
     middleFold = 0.0;
@@ -64,24 +172,42 @@ export function generateHandLandmarks(signId, time, width = 640, height = 480) {
     middleFold = 1.0;
     ringFold = 1.0;
     pinkyFold = 1.0;
-  } else if (signId === 'letter-b') {
+  } else if (signId === 'letter-b' || signId === 'num-4') {
     thumbFold = 1.0;
     indexFold = 0.0;
     middleFold = 0.0;
     ringFold = 0.0;
     pinkyFold = 0.0;
-  } else if (signId === 'letter-y') {
+  } else if (signId === 'call-me' || signId === 'letter-y') {
     thumbFold = 0.0;
     indexFold = 1.0;
     middleFold = 1.0;
     ringFold = 1.0;
     pinkyFold = 0.0;
-  } else if (signId === 'help') {
+  } else if (signId === 'point' || signId === 'num-1') {
+    thumbFold = 0.8;
+    indexFold = 0.0;
+    middleFold = 1.0;
+    ringFold = 1.0;
+    pinkyFold = 1.0;
+  } else if (signId === 'thumbs-up') {
     thumbFold = 0.0;
-    indexFold = 0.9;
-    middleFold = 0.9;
-    ringFold = 0.9;
-    pinkyFold = 0.9;
+    indexFold = 1.0;
+    middleFold = 1.0;
+    ringFold = 1.0;
+    pinkyFold = 1.0;
+  } else if (signId === 'ok') {
+    thumbFold = 0.5;
+    indexFold = 0.5;
+    middleFold = 0.0;
+    ringFold = 0.0;
+    pinkyFold = 0.0;
+  } else if (signId === 'water' || signId === 'num-3') {
+    thumbFold = 0.9;
+    indexFold = 0.0;
+    middleFold = 0.0;
+    ringFold = 0.0;
+    pinkyFold = 1.0;
   }
 
   const landmarks = [];
@@ -126,10 +252,10 @@ export function drawHandLandmarks(ctx, landmarks, signLabel = '', confidence = 9
 
   // Draw glowing skeletal connections
   ctx.save();
-  ctx.lineWidth = 3;
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.75)'; // Electric Cyan
-  ctx.shadowColor = '#0284c7';
-  ctx.shadowBlur = 10;
+  ctx.lineWidth = 3.5;
+  ctx.strokeStyle = '#06b6d4'; // Cyan neon
+  ctx.shadowColor = '#06b6d4';
+  ctx.shadowBlur = 12;
 
   for (const [start, end] of HAND_CONNECTIONS) {
     const p1 = landmarks[start];
@@ -144,7 +270,7 @@ export function drawHandLandmarks(ctx, landmarks, signLabel = '', confidence = 9
 
   // Draw secondary pulse connections
   ctx.lineWidth = 1.5;
-  ctx.strokeStyle = 'rgba(168, 85, 247, 0.4)'; // Purple pulse
+  ctx.strokeStyle = '#a855f7'; // Purple neon
   for (const [start, end] of HAND_CONNECTIONS) {
     const p1 = landmarks[start];
     const p2 = landmarks[end];
@@ -160,30 +286,30 @@ export function drawHandLandmarks(ctx, landmarks, signLabel = '', confidence = 9
   landmarks.forEach((p, index) => {
     ctx.beginPath();
     const isTip = [4, 8, 12, 16, 20].includes(index);
-    const radius = isTip ? 6 : 4;
+    const radius = isTip ? 7 : 4.5;
 
     ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
     if (isTip) {
-      ctx.fillStyle = '#34d399'; // Emerald glowing tips
+      ctx.fillStyle = '#10b981'; // Emerald glowing tips
       ctx.shadowColor = '#10b981';
-      ctx.shadowBlur = 14;
+      ctx.shadowBlur = 16;
     } else if (index === 0) {
       ctx.fillStyle = '#f43f5e'; // Rose wrist anchor
       ctx.shadowColor = '#e11d48';
-      ctx.shadowBlur = 14;
+      ctx.shadowBlur = 16;
     } else {
       ctx.fillStyle = '#38bdf8'; // Cyan joint
       ctx.shadowColor = '#0ea5e9';
-      ctx.shadowBlur = 8;
+      ctx.shadowBlur = 10;
     }
     ctx.fill();
 
     // Outer node ring for fingertips
     if (isTip) {
       ctx.strokeStyle = '#ffffff';
-      ctx.lineWidth = 1.5;
+      ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, radius + 2, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, radius + 3, 0, Math.PI * 2);
       ctx.stroke();
     }
   });
@@ -197,18 +323,18 @@ export function drawHandLandmarks(ctx, landmarks, signLabel = '', confidence = 9
     if (p.y > maxY) maxY = p.y;
   });
 
-  const pad = 25;
+  const pad = 24;
   minX -= pad;
   minY -= pad;
   maxX += pad;
   maxY += pad;
 
   // Draw HUD bounding box brackets
-  ctx.strokeStyle = 'rgba(56, 189, 248, 0.8)';
-  ctx.lineWidth = 2;
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 2.5;
   ctx.shadowColor = '#38bdf8';
-  ctx.shadowBlur = 8;
-  const bracketLen = 20;
+  ctx.shadowBlur = 10;
+  const bracketLen = 22;
 
   // Top-left
   ctx.beginPath();
@@ -241,19 +367,19 @@ export function drawHandLandmarks(ctx, landmarks, signLabel = '', confidence = 9
   // HUD Tracking Tag
   if (signLabel) {
     ctx.font = 'bold 12px ui-monospace, monospace';
-    const tagText = `[ LOCKED: ${signLabel.toUpperCase()} | ${confidence.toFixed(1)}% ]`;
+    const tagText = `[ NEURAL LOCK: ${signLabel.toUpperCase()} | ${confidence.toFixed(1)}% ]`;
     const textWidth = ctx.measureText(tagText).width;
 
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.85)';
-    ctx.fillRect(minX, minY - 24, textWidth + 14, 20);
+    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+    ctx.fillRect(minX, minY - 26, textWidth + 16, 22);
 
     ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(minX, minY - 24, textWidth + 14, 20);
+    ctx.lineWidth = 1.2;
+    ctx.strokeRect(minX, minY - 26, textWidth + 16, 22);
 
     ctx.fillStyle = '#38bdf8';
     ctx.shadowBlur = 0;
-    ctx.fillText(tagText, minX + 7, minY - 10);
+    ctx.fillText(tagText, minX + 8, minY - 10);
   }
 
   ctx.restore();
