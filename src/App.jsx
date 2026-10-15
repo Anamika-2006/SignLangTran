@@ -6,7 +6,6 @@ import VoiceToSignStudio from './components/VoiceToSignStudio';
 import SignAcademy from './components/SignAcademy';
 import EmergencySOSModal from './components/EmergencySOSModal';
 import AuthModal from './components/AuthModal';
-import AuthGate from './components/AuthGate';
 import AICopilotChatbot from './components/AICopilotChatbot';
 import SettingsModal from './components/SettingsModal';
 import AnalyticsDrawer from './components/AnalyticsDrawer';
@@ -24,7 +23,7 @@ export default function App() {
   // Navigation & View States: 'home' is default SaaS website landing view
   const [activeTab, setActiveTab] = useState('home'); // 'home', 'translator', 'reverse', 'academy'
   
-  // User Authentication State: Frontend is locked until sign-in / sign-up
+  // User Authentication State: Optional session state (Not blocking)
   const [currentUser, setCurrentUser] = useState(null);
 
   // UI Dialog States
@@ -84,17 +83,16 @@ export default function App() {
     showToast('Translation logged in Telemetry history', 'success');
   };
 
-  // User Sign-in handler (Unlocks frontend)
+  // User Sign-in handler
   const handleLoginSuccess = (user) => {
     setCurrentUser(user);
-    showToast(`Welcome back, ${user.name}! Full platform unlocked.`, 'success');
+    showToast(`Welcome back, ${user.name}! Profile active.`, 'success');
   };
 
-  // User Logout handler (Re-locks frontend to Auth Gate)
+  // User Logout handler
   const handleLogout = () => {
     setCurrentUser(null);
-    setActiveTab('home');
-    showToast('Signed out of session. Platform secured.', 'info');
+    showToast('Signed out of session', 'info');
   };
 
   // Keyboard shortcut listener
@@ -121,18 +119,6 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
-  // ==============================================================
-  // STRICT AUTH GATE: FRONTEND DOES NOT OPEN UNTIL SIGN IN / SIGN UP
-  // ==============================================================
-  if (!currentUser) {
-    return (
-      <AuthGate onLoginSuccess={handleLoginSuccess} />
-    );
-  }
-
-  // ==============================================================
-  // FULL UNLOCKED PLATFORM (ONCE AUTHENTICATED)
-  // ==============================================================
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans selection:bg-indigo-500 selection:text-white relative">
       
@@ -152,7 +138,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Top Professional Navbar with User Profile Pill & Sign Out */}
+      {/* Top Professional Navbar with User Profile Pill & Sign In / Sign Up Trigger */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
