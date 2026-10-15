@@ -4,13 +4,8 @@ import {
   X, 
   Volume2, 
   VolumeX, 
-  PhoneCall, 
   MapPin, 
-  ShieldAlert, 
-  Radio,
-  Flame,
-  Ambulance,
-  BadgeAlert
+  Radio
 } from 'lucide-react';
 import { SOS_PRESETS } from '../data/signsData';
 import { sounds } from '../utils/soundEffects';
@@ -25,7 +20,7 @@ export default function EmergencySOSModal({ isOpen, onClose }) {
     if (!isOpen || !isSirenActive) return;
     const interval = setInterval(() => {
       sounds.playAlarm();
-    }, 900);
+    }, 1200);
     return () => clearInterval(interval);
   }, [isOpen, isSirenActive]);
 
@@ -38,22 +33,22 @@ export default function EmergencySOSModal({ isOpen, onClose }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-red-950/85 backdrop-blur-2xl animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
       
-      {/* Flashing strobe border effect */}
-      <div className="relative w-full max-w-2xl rounded-3xl bg-slate-950 border-2 border-red-500 shadow-[0_0_80px_rgba(239,68,68,0.5)] p-6 sm:p-8 flex flex-col gap-6 text-left">
+      {/* Main Alert Card */}
+      <div className="relative w-full max-w-2xl rounded-3xl bg-white border-2 border-red-500 shadow-2xl p-6 sm:p-8 flex flex-col gap-6 text-left">
         
         {/* Header Ribbon */}
-        <div className="flex items-center justify-between border-b border-red-900/60 pb-4">
+        <div className="flex items-center justify-between border-b border-slate-100 pb-4">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 rounded-2xl bg-red-600/20 border border-red-500 flex items-center justify-center text-red-500 animate-pulse">
-              <AlertTriangle className="w-7 h-7" />
+            <div className="w-12 h-12 rounded-2xl bg-red-100 border border-red-200 flex items-center justify-center text-red-600 animate-pulse">
+              <AlertTriangle className="w-6 h-6" />
             </div>
             <div>
-              <span className="text-xs font-mono font-bold text-red-400 tracking-widest uppercase">
+              <span className="text-xs font-mono font-bold text-red-600 tracking-wider uppercase">
                 CRITICAL LIFE SAFETY HUD
               </span>
-              <h2 className="text-2xl font-black text-white tracking-tight">
+              <h2 className="text-2xl font-black text-slate-900 tracking-tight">
                 Emergency SOS Broadcast
               </h2>
             </div>
@@ -65,17 +60,17 @@ export default function EmergencySOSModal({ isOpen, onClose }) {
               speech.stop();
               onClose();
             }}
-            className="p-2.5 rounded-xl bg-slate-900 border border-red-500/40 text-slate-400 hover:text-white hover:bg-red-950/40"
+            className="p-2.5 rounded-xl bg-slate-100 border border-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-200 transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Big Alert Hero Display Card for Bystanders / First Responders */}
-        <div className="p-6 rounded-3xl bg-red-950/40 border border-red-500/60 flex flex-col gap-3">
-          <div className="flex items-center justify-between text-xs font-mono text-red-300">
+        <div className="p-6 rounded-2xl bg-red-50 border border-red-200 flex flex-col gap-3">
+          <div className="flex items-center justify-between text-xs font-mono font-semibold text-red-700">
             <span className="flex items-center gap-1.5">
-              <Radio className="w-4 h-4 animate-ping" />
+              <Radio className="w-4 h-4 animate-ping text-red-600" />
               BROADCASTING DISTRESS MESSAGE
             </span>
             <span>TRANSLATION: DEAF / MUTE EMERGENCY</span>
@@ -83,13 +78,13 @@ export default function EmergencySOSModal({ isOpen, onClose }) {
 
           <div className="my-2">
             <span className="text-4xl">{selectedSOS.icon}</span>
-            <h3 className="text-2xl sm:text-3xl font-black text-white mt-2 leading-snug">
+            <h3 className="text-2xl sm:text-3xl font-black text-red-950 mt-2 leading-snug">
               "{selectedSOS.text}"
             </h3>
           </div>
 
-          <div className="flex items-center gap-2 pt-2 border-t border-red-900/40 text-xs text-red-300 font-mono">
-            <MapPin className="w-4 h-4 text-red-400 flex-shrink-0" />
+          <div className="flex items-center gap-2 pt-2 border-t border-red-200 text-xs text-red-700 font-mono">
+            <MapPin className="w-4 h-4 text-red-600 flex-shrink-0" />
             <span>GEO-COORDINATES: Lat 28.6139° N, Lon 77.2090° E (Accuracy &plusmn; 4m)</span>
           </div>
         </div>
@@ -102,38 +97,41 @@ export default function EmergencySOSModal({ isOpen, onClose }) {
               <button
                 key={sos.id}
                 onClick={() => {
-                  sounds.playAlarm();
+                  sounds.playClick();
                   setSelectedSOS(sos);
                 }}
                 className={`p-3 rounded-2xl border text-left flex flex-col gap-1 transition-all ${
                   isSel
-                    ? 'bg-red-600/30 border-red-500 text-white shadow-lg shadow-red-950/50'
-                    : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-white'
+                    ? 'bg-red-600 text-white border-red-600 shadow-md font-bold'
+                    : 'bg-slate-50 hover:bg-slate-100 border-slate-200 text-slate-800'
                 }`}
               >
                 <span className="text-2xl">{sos.icon}</span>
-                <span className="text-xs font-bold leading-tight mt-1">{sos.title}</span>
+                <span className="text-xs font-bold leading-tight mt-1">{sos.label}</span>
+                <span className={`text-[10px] ${isSel ? 'text-red-100' : 'text-slate-500'}`}>
+                  {sos.type}
+                </span>
               </button>
             );
           })}
         </div>
 
-        {/* Emergency Voice Output Action */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2">
+        {/* Action Controls */}
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pt-2 border-t border-slate-100">
           <button
-            onClick={handleTriggerVocalAlert}
-            className="w-full sm:w-auto flex-1 py-3.5 px-6 rounded-2xl bg-red-600 hover:bg-red-500 text-white font-black text-sm flex items-center justify-center gap-2 shadow-2xl shadow-red-600/40 active:scale-95 transition-all"
+            onClick={() => setIsSirenActive(!isSirenActive)}
+            className="flex items-center gap-2 text-xs font-semibold text-slate-600 hover:text-slate-900"
           >
-            <Volume2 className="w-5 h-5 animate-bounce" />
-            <span>Broadcast Emergency Vocal Siren</span>
+            {isSirenActive ? <Volume2 className="w-4 h-4 text-red-600" /> : <VolumeX className="w-4 h-4 text-slate-400" />}
+            <span>{isSirenActive ? 'Siren Tone Active (Mute)' : 'Siren Muted (Activate)'}</span>
           </button>
 
           <button
-            onClick={() => setIsSirenActive(!isSirenActive)}
-            className="px-4 py-3 rounded-2xl bg-slate-900 border border-slate-800 text-slate-300 text-xs font-semibold flex items-center gap-2"
+            onClick={handleTriggerVocalAlert}
+            className="w-full sm:w-auto px-6 py-3 rounded-2xl bg-red-600 hover:bg-red-700 text-white font-bold text-sm shadow-md shadow-red-500/20 active:scale-95 transition-all flex items-center justify-center gap-2"
           >
-            {isSirenActive ? <VolumeX className="w-4 h-4 text-red-400" /> : <Volume2 className="w-4 h-4 text-emerald-400" />}
-            <span>{isSirenActive ? 'Mute Audible Siren' : 'Enable Audible Siren'}</span>
+            <Volume2 className="w-4 h-4" />
+            <span>Speak Distress Aloud Now</span>
           </button>
         </div>
 

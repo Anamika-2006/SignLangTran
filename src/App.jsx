@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from './components/Navbar';
+import WebsiteHome from './components/WebsiteHome';
 import CameraTranslator from './components/CameraTranslator';
 import VoiceToSignStudio from './components/VoiceToSignStudio';
 import SignAcademy from './components/SignAcademy';
@@ -8,23 +9,18 @@ import AuthModal from './components/AuthModal';
 import SettingsModal from './components/SettingsModal';
 import AnalyticsDrawer from './components/AnalyticsDrawer';
 import Footer from './components/Footer';
-import { MOCK_HISTORY, SIGN_DICTIONARY } from './data/signsData';
+import { MOCK_HISTORY } from './data/signsData';
 import { sounds } from './utils/soundEffects';
 import { speech } from './utils/speechSynthesizer';
 import { 
   Sparkles, 
-  Video, 
-  Mic, 
-  GraduationCap, 
-  ShieldCheck, 
   Check, 
-  AlertCircle,
   Cpu
 } from 'lucide-react';
 
 export default function App() {
-  // Navigation & View States
-  const [activeTab, setActiveTab] = useState('translator'); // 'translator', 'reverse', 'academy'
+  // Navigation & View States: 'home' is default SaaS website landing view
+  const [activeTab, setActiveTab] = useState('home'); // 'home', 'translator', 'reverse', 'academy'
   
   // UI Dialog States
   const [isAuthOpen, setIsAuthOpen] = useState(false);
@@ -123,21 +119,25 @@ export default function App() {
   }, []);
 
   return (
-    <div className="min-h-screen bg-[#070b14] text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-slate-950">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
       
       {/* Toast Notification Floater */}
       {toast && (
-        <div className="fixed top-20 right-4 z-50 flex items-center gap-2 px-4 py-3 rounded-2xl bg-slate-900 border border-cyan-500/40 text-white text-xs font-semibold shadow-2xl shadow-cyan-950/60 animate-in slide-in-from-top-4 duration-200">
+        <div className="fixed top-20 right-4 z-50 flex items-center gap-2.5 px-4 py-3 rounded-2xl bg-white border border-slate-200 text-slate-800 text-xs font-semibold shadow-xl shadow-slate-900/10 animate-in slide-in-from-top-4 duration-200">
           {toast.type === 'success' ? (
-            <Check className="w-4 h-4 text-emerald-400 flex-shrink-0" />
+            <div className="w-5 h-5 rounded-full bg-emerald-100 flex items-center justify-center text-emerald-600 flex-shrink-0">
+              <Check className="w-3.5 h-3.5" />
+            </div>
           ) : (
-            <Sparkles className="w-4 h-4 text-cyan-400 flex-shrink-0" />
+            <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-indigo-600 flex-shrink-0">
+              <Sparkles className="w-3.5 h-3.5" />
+            </div>
           )}
           <span>{toast.message}</span>
         </div>
       )}
 
-      {/* Top Navbar */}
+      {/* Top Professional Navbar */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -151,38 +151,51 @@ export default function App() {
         onOpenAnalytics={() => setIsAnalyticsOpen(true)}
       />
 
-      {/* Main App Content Viewport */}
+      {/* Main Content Viewport */}
       <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 flex flex-col gap-8">
         
+        {/* VIEW 0: FULL SAAS WEBSITE LANDING EXPERIENCE */}
+        {activeTab === 'home' && (
+          <div className="animate-in fade-in duration-300">
+            <WebsiteHome
+              onLaunchStudio={() => setActiveTab('translator')}
+              onLaunchReverse={() => setActiveTab('reverse')}
+              onLaunchAcademy={() => setActiveTab('academy')}
+              onOpenAuth={() => setIsAuthOpen(true)}
+              onOpenSOS={() => setIsSOSOpen(true)}
+            />
+          </div>
+        )}
+
         {/* VIEW 1: SIGN STUDIO (TRANSLATE CAMERA/GESTURES TO TEXT & SPEECH) */}
         {activeTab === 'translator' && (
           <div className="flex flex-col gap-8 animate-in fade-in duration-300">
             
             {/* Header Hero Banner */}
-            <div className="text-left flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-900 pb-5">
+            <div className="text-left flex flex-col md:flex-row md:items-end justify-between gap-4 border-b border-slate-200 pb-5">
               <div>
                 <div className="flex items-center gap-2">
-                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 font-mono">
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 font-mono">
                     NEUROSIGN VISION ENGINE 4.2
                   </span>
-                  <span className="flex items-center gap-1 text-[11px] text-emerald-400 font-mono">
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                  <span className="flex items-center gap-1.5 text-[11px] text-emerald-600 font-mono font-medium">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-ping"></span>
                     EDGE TENSOR ACTIVE
                   </span>
                 </div>
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-white tracking-tight mt-2">
-                  Sign Language to Speech <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 via-sky-400 to-indigo-400">& Text Studio</span>
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tight mt-2">
+                  Sign Language to Speech <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-600 to-blue-600">& Text Studio</span>
                 </h1>
-                <p className="text-sm sm:text-base text-slate-400 max-w-3xl mt-1">
+                <p className="text-sm sm:text-base text-slate-600 max-w-3xl mt-1">
                   Translate sign gestures instantly into natural fluent vocal speech, English prose, and Hindi with sub-15ms edge kinematics.
                 </p>
               </div>
 
               {/* Status Pill */}
-              <div className="flex items-center gap-2 p-1.5 px-3 rounded-2xl bg-slate-900/80 border border-slate-800 text-xs">
-                <Cpu className="w-4 h-4 text-cyan-400" />
-                <span className="text-slate-400 font-mono">Mode:</span>
-                <span className="text-white font-bold font-mono">{settings.dialect} Dialect</span>
+              <div className="flex items-center gap-2 p-1.5 px-3 rounded-2xl bg-white border border-slate-200 text-xs shadow-xs">
+                <Cpu className="w-4 h-4 text-indigo-600" />
+                <span className="text-slate-500 font-mono">Mode:</span>
+                <span className="text-slate-900 font-bold font-mono">{settings.dialect} Dialect</span>
               </div>
             </div>
 
@@ -195,9 +208,7 @@ export default function App() {
                 onAppendWord={handleAppendWord}
                 onClearSentence={handleClearSentence}
                 onSaveToHistory={handleSaveToHistory}
-                onSignRecognized={(sign) => {
-                  // Sign recognition event
-                }}
+                onSignRecognized={() => {}}
               />
             </div>
 
@@ -220,7 +231,7 @@ export default function App() {
 
       </main>
 
-      {/* Footer */}
+      {/* Enterprise Light Footer */}
       <Footer />
 
       {/* Global Modals & Drawers */}

@@ -250,12 +250,12 @@ export function generateHandLandmarks(signId, time, width = 640, height = 480) {
 export function drawHandLandmarks(ctx, landmarks, signLabel = '', confidence = 98.4) {
   if (!landmarks || landmarks.length < 21) return;
 
-  // Draw glowing skeletal connections
+  // Draw clean modern skeletal connections
   ctx.save();
   ctx.lineWidth = 3.5;
-  ctx.strokeStyle = '#06b6d4'; // Cyan neon
-  ctx.shadowColor = '#06b6d4';
-  ctx.shadowBlur = 12;
+  ctx.strokeStyle = '#2563eb'; // Royal Blue
+  ctx.shadowColor = 'rgba(37, 99, 235, 0.4)';
+  ctx.shadowBlur = 8;
 
   for (const [start, end] of HAND_CONNECTIONS) {
     const p1 = landmarks[start];
@@ -268,9 +268,9 @@ export function drawHandLandmarks(ctx, landmarks, signLabel = '', confidence = 9
     }
   }
 
-  // Draw secondary pulse connections
+  // Draw secondary accent connections
   ctx.lineWidth = 1.5;
-  ctx.strokeStyle = '#a855f7'; // Purple neon
+  ctx.strokeStyle = '#6366f1'; // Indigo
   for (const [start, end] of HAND_CONNECTIONS) {
     const p1 = landmarks[start];
     const p2 = landmarks[end];
@@ -290,26 +290,26 @@ export function drawHandLandmarks(ctx, landmarks, signLabel = '', confidence = 9
 
     ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
     if (isTip) {
-      ctx.fillStyle = '#10b981'; // Emerald glowing tips
-      ctx.shadowColor = '#10b981';
-      ctx.shadowBlur = 16;
-    } else if (index === 0) {
-      ctx.fillStyle = '#f43f5e'; // Rose wrist anchor
-      ctx.shadowColor = '#e11d48';
-      ctx.shadowBlur = 16;
-    } else {
-      ctx.fillStyle = '#38bdf8'; // Cyan joint
-      ctx.shadowColor = '#0ea5e9';
+      ctx.fillStyle = '#059669'; // Emerald tips
+      ctx.shadowColor = 'rgba(5, 150, 105, 0.5)';
       ctx.shadowBlur = 10;
+    } else if (index === 0) {
+      ctx.fillStyle = '#dc2626'; // Red wrist anchor
+      ctx.shadowColor = 'rgba(220, 38, 38, 0.4)';
+      ctx.shadowBlur = 8;
+    } else {
+      ctx.fillStyle = '#2563eb'; // Royal Blue joint
+      ctx.shadowColor = 'rgba(37, 99, 235, 0.4)';
+      ctx.shadowBlur = 6;
     }
     ctx.fill();
 
-    // Outer node ring for fingertips
+    // Outer ring for fingertips
     if (isTip) {
       ctx.strokeStyle = '#ffffff';
       ctx.lineWidth = 2;
       ctx.beginPath();
-      ctx.arc(p.x, p.y, radius + 3, 0, Math.PI * 2);
+      ctx.arc(p.x, p.y, radius + 2, 0, Math.PI * 2);
       ctx.stroke();
     }
   });
@@ -330,10 +330,10 @@ export function drawHandLandmarks(ctx, landmarks, signLabel = '', confidence = 9
   maxY += pad;
 
   // Draw HUD bounding box brackets
-  ctx.strokeStyle = '#38bdf8';
+  ctx.strokeStyle = '#2563eb';
   ctx.lineWidth = 2.5;
-  ctx.shadowColor = '#38bdf8';
-  ctx.shadowBlur = 10;
+  ctx.shadowColor = 'rgba(37, 99, 235, 0.3)';
+  ctx.shadowBlur = 6;
   const bracketLen = 22;
 
   // Top-left
@@ -366,18 +366,18 @@ export function drawHandLandmarks(ctx, landmarks, signLabel = '', confidence = 9
 
   // HUD Tracking Tag
   if (signLabel) {
-    ctx.font = 'bold 12px ui-monospace, monospace';
-    const tagText = `[ NEURAL LOCK: ${signLabel.toUpperCase()} | ${confidence.toFixed(1)}% ]`;
+    ctx.font = 'bold 12px system-ui, sans-serif';
+    const tagText = `${signLabel.toUpperCase()} • ${confidence.toFixed(1)}%`;
     const textWidth = ctx.measureText(tagText).width;
 
-    ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
+    ctx.fillStyle = '#0f172a';
     ctx.fillRect(minX, minY - 26, textWidth + 16, 22);
 
-    ctx.strokeStyle = '#38bdf8';
+    ctx.strokeStyle = '#2563eb';
     ctx.lineWidth = 1.2;
     ctx.strokeRect(minX, minY - 26, textWidth + 16, 22);
 
-    ctx.fillStyle = '#38bdf8';
+    ctx.fillStyle = '#ffffff';
     ctx.shadowBlur = 0;
     ctx.fillText(tagText, minX + 8, minY - 10);
   }

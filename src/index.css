@@ -7,56 +7,44 @@
   body {
     margin: 0;
     padding: 0;
-    font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-    background-color: #090d16;
-    color: #f1f5f9;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Inter', Oxygen, Ubuntu, Cantarell, sans-serif;
+    background-color: #f8fafc;
+    color: #0f172a;
     overflow-x: hidden;
   }
 }
 
-/* Custom glowing and futuristic UI scrollbar & animations */
+/* Professional clean scrollbar */
 ::-webkit-scrollbar {
-  width: 8px;
-  height: 8px;
+  width: 7px;
+  height: 7px;
 }
 ::-webkit-scrollbar-track {
-  background: #0b0f19;
+  background: #f1f5f9;
 }
 ::-webkit-scrollbar-thumb {
-  background: #1e293b;
+  background: #cbd5e1;
   border-radius: 9999px;
-  border: 2px solid #0b0f19;
+  border: 2px solid #f1f5f9;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #38bdf8;
+  background: #94a3b8;
 }
 
-@keyframes pulse-glow {
-  0%, 100% {
-    box-shadow: 0 0 15px rgba(56, 189, 248, 0.4), inset 0 0 15px rgba(56, 189, 248, 0.2);
-  }
-  50% {
-    box-shadow: 0 0 30px rgba(56, 189, 248, 0.7), inset 0 0 25px rgba(56, 189, 248, 0.4);
-  }
+/* Smooth subtle animations */
+@keyframes subtle-float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
 }
 
-@keyframes scanline {
-  0% { transform: translateY(-100%); }
-  100% { transform: translateY(1000%); }
+.animate-subtle-float {
+  animation: subtle-float 5s ease-in-out infinite;
 }
 
-.animate-scanline {
-  animation: scanline 8s linear infinite;
+.shadow-soft {
+  box-shadow: 0 4px 20px -2px rgba(15, 23, 42, 0.06), 0 2px 6px -1px rgba(15, 23, 42, 0.04);
 }
 
-.glow-blue {
-  box-shadow: 0 0 25px rgba(14, 165, 233, 0.35);
-}
-
-.glow-emerald {
-  box-shadow: 0 0 25px rgba(16, 185, 129, 0.35);
-}
-
-.glow-violet {
-  box-shadow: 0 0 25px rgba(168, 85, 247, 0.35);
+.shadow-card {
+  box-shadow: 0 10px 30px -4px rgba(15, 23, 42, 0.08), 0 4px 10px -2px rgba(15, 23, 42, 0.03);
 }
