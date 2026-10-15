@@ -6,6 +6,8 @@ import VoiceToSignStudio from './components/VoiceToSignStudio';
 import SignAcademy from './components/SignAcademy';
 import EmergencySOSModal from './components/EmergencySOSModal';
 import AuthModal from './components/AuthModal';
+import AuthGate from './components/AuthGate';
+import AICopilotChatbot from './components/AICopilotChatbot';
 import SettingsModal from './components/SettingsModal';
 import AnalyticsDrawer from './components/AnalyticsDrawer';
 import Footer from './components/Footer';
@@ -22,6 +24,9 @@ export default function App() {
   // Navigation & View States: 'home' is default SaaS website landing view
   const [activeTab, setActiveTab] = useState('home'); // 'home', 'translator', 'reverse', 'academy'
   
+  // User Authentication State: Frontend is locked until sign-in / sign-up
+  const [currentUser, setCurrentUser] = useState(null);
+
   // UI Dialog States
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isSOSOpen, setIsSOSOpen] = useState(false);
@@ -36,9 +41,6 @@ export default function App() {
     autoSpeak: false,
     confidenceThreshold: 90
   });
-
-  // User Authentication State
-  const [currentUser, setCurrentUser] = useState(null);
 
   // Translation Tokens & Session History
   const [sentenceTokens, setSentenceTokens] = useState(['HELLO', 'THANK-YOU']);
@@ -82,16 +84,17 @@ export default function App() {
     showToast('Translation logged in Telemetry history', 'success');
   };
 
-  // User Sign-in handler
+  // User Sign-in handler (Unlocks frontend)
   const handleLoginSuccess = (user) => {
     setCurrentUser(user);
-    showToast(`Welcome back, ${user.name}! Profile active.`, 'success');
+    showToast(`Welcome back, ${user.name}! Full platform unlocked.`, 'success');
   };
 
-  // User Logout handler
+  // User Logout handler (Re-locks frontend to Auth Gate)
   const handleLogout = () => {
     setCurrentUser(null);
-    showToast('Signed out of session', 'info');
+    setActiveTab('home');
+    showToast('Signed out of session. Platform secured.', 'info');
   };
 
   // Keyboard shortcut listener
@@ -118,8 +121,20 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
+  // ==============================================================
+  // STRICT AUTH GATE: FRONTEND DOES NOT OPEN UNTIL SIGN IN / SIGN UP
+  // ==============================================================
+  if (!currentUser) {
+    return (
+      <AuthGate onLoginSuccess={handleLoginSuccess} />
+    );
+  }
+
+  // ==============================================================
+  // FULL UNLOCKED PLATFORM (ONCE AUTHENTICATED)
+  // ==============================================================
   return (
-    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans selection:bg-indigo-500 selection:text-white">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-900 flex flex-col font-sans selection:bg-indigo-500 selection:text-white relative">
       
       {/* Toast Notification Floater */}
       {toast && (
@@ -137,7 +152,7 @@ export default function App() {
         </div>
       )}
 
-      {/* Top Professional Navbar */}
+      {/* Top Professional Navbar with User Profile Pill & Sign Out */}
       <Navbar
         activeTab={activeTab}
         setActiveTab={setActiveTab}
@@ -233,6 +248,19 @@ export default function App() {
 
       {/* Enterprise Light Footer */}
       <Footer />
+
+      {/* ============================================================== */}
+      {/* EMBEDDED AI COPILOT CHATBOT (INTELLIGENT WEBPAGE ASSISTANT) */}
+      {/* ============================================================== */}
+      <AICopilotChatbot
+        onNavigateTab={(tab) => {
+          setActiveTab(tab);
+          window.scrollTo({ top: 0, behavior: 'smooth' });
+        }}
+        onOpenSOS={() => setIsSOSOpen(true)}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+        currentUser={currentUser}
+      />
 
       {/* Global Modals & Drawers */}
       <AuthModal
